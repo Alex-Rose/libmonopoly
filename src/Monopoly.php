@@ -95,15 +95,16 @@
 	 * Gestionnaire Monopoly.
 	 */
 	class MonopolyManager {
-		const VALIDATION_URL = 'https://www4.polymtl.ca/servlet/ValidationServlet';
-		const MODIFCOURS_URL = 'https://www4.polymtl.ca/servlet/ModifCoursServlet';
-		const CHOIXCOURS_URL = 'https://www4.polymtl.ca/servlet/ChoixCoursServlet';
-		const PRESENTATION_URL = 'https://www4.polymtl.ca/servlet/PresentationResultatsTrimServlet';
+		const VALIDATION_URL   = 'https://dossieretudiant.polymtl.ca/WebEtudiant7/ValidationServlet';
+		const MODIFCOURS_URL   = 'https://dossieretudiant.polymtl.ca/WebEtudiant7/ModifCoursServlet';
+		const CHOIXCOURS_URL   = 'https://dossieretudiant.polymtl.ca/WebEtudiant7/ChoixCoursServlet';
+		const PRESENTATION_URL = 'https://dossieretudiant.polymtl.ca/WebEtudiant7/PresentationResultatsTrimServlet';
 		const FAKE_USER_AGENT = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.2.3) Gecko/20100401 Firefox/3.6.3';
 		const K_TYPE = 'type';
 		const K_VALUE = 'value';
 		const COURSE_LAB = 'L';		// Clef à utiliser pour un groupe de laboratoire
 		const COURSE_THEO = 'T';	// Clef à utiliser pour un groupe théorique
+		const COOKIE_FILE = './cookie.txt';
 
 		private $_validation_raw_data = NULL;		// Données brutes de la page de validation
 		private $_choixcours_raw_data = NULL;		// Données brutes de la page de modification de choix de cours
@@ -149,6 +150,8 @@
 			curl_setopt($ch, CURLOPT_POST, TRUE);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
 			curl_setopt($ch, CURLOPT_USERAGENT, self::FAKE_USER_AGENT);
+			curl_setopt($ch, CURLOPT_COOKIEJAR, self::COOKIE_FILE);
+			curl_setopt($ch, CURLOPT_COOKIEFILE, self::COOKIE_FILE);
 			foreach ($curl_opts as $k => $v) {
 				curl_setopt($ch, $k, $v);
 			}
@@ -214,6 +217,8 @@
 		 * @return		Entrées sous forme de tableau associatif
 		 */
 		private function get_inputs_from_raw_data(&$raw) {
+			$this->sanitize_raw_data($raw);
+
 			$ret = array();
 
 			preg_match_all('/<input[^>]+>/', $raw, $m, PREG_SET_ORDER);
@@ -523,6 +528,18 @@
 		}
 
 		/**
+		 * Enlève les commentaires HTML de la page car
+		 * ils contiennent du vieux code qui peuvent mener
+		 * à une mauvaise interprétation des données.
+		 *
+		 * @param raw		Données brutes de la page
+		 * @return		Null
+		 */
+		private function sanitize_raw_data(&$raw) {
+			$raw = preg_replace('/<!--(.|\s)*?-->/', '', $raw);
+		}
+
+		/**
 		 * Obtenir une copie des cours enregistrés à date.
 		 *
 		 * @return	Copie des cours enregistrés
@@ -605,12 +622,12 @@
 		 */
 		public function submit_registered_courses() {
 			$inputs = $this->prepare_inputs_for_rc_submit();
+
 			if (!$inputs) {
 				return false;
 			}
 
 			$ps = $this->build_post_string($inputs, 'value');
-
 
 			return $this->curl_post(self::MODIFCOURS_URL, $ps) !== false;
 		}
