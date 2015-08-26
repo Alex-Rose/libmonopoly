@@ -346,6 +346,54 @@
 
 			return $course_status_vo;
 		}
+		
+		/**
+		 * Obtenir les info de tous les groupes d'un cours.
+		 *
+		 * @param abbr		Sigle
+		 * @return		Tableau de VO de statut ou NULL si aucun résultat
+		 */
+		public function get_course_info_all_groups($abbr) {
+			$this->set_choixcours_raw_data();
+			
+			$r_abbr = strtoupper($abbr);
+			$to_match = sprintf("/GC\s*\[\s*\"(%s\d\d[T,L])\"\s*\]\s*=\s*\"([^\"]+)\"\s*;/i", $r_abbr);
+			$matches = [];
+			if (preg_match_all($to_match, $this->_choixcours_raw_data, $matches) == 0) {
+				return NULL;
+			}
+			
+			$ret = [];
+			for ($i = 0; $i < count($matches[0]); ++$i)
+			{
+				$match_name = $matches[1][$i];
+				$match_data = $matches[2][$i];
+				
+				$places = intval(substr($match_data, 0, 3));
+				$h = (trim(substr($match_data, 3, 1)) != '');
+				if (substr($match_data, 7, 1) != ' ') {
+					$p = 6;
+				} else {
+					$p = 5;
+				}
+				$course_status_vo = new MonopolyCourseStatus();
+				$sched = explode(" ", trim(substr($match_data, $p)));
+				sort($sched);
+				$course_status_vo->sched = array();
+				foreach ($sched as $pernum) {
+					array_push($course_status_vo->sched, $this->sched_from_pernum($pernum));
+				}
+				$course_status_vo->abbr = $r_abbr;
+				$course_status_vo->type = substr($match_name, -1);
+				$course_status_vo->gr = substr($match_name, -3, 2);
+				$course_status_vo->places = $places;
+				$course_status_vo->h = $h;
+				
+				array_push($ret, $course_status_vo);
+			}
+			
+			return $ret;
+		}
 
 		/**
 		 * Obtenir les informations d'un cours.
